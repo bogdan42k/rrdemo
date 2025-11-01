@@ -70,6 +70,23 @@ export default function Register() {
 
             <div>
               <label
+                htmlFor="city"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                City
+              </label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                required
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="New York"
+              />
+            </div>
+
+            <div>
+              <label
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
