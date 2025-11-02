@@ -24,7 +24,7 @@ export async function action({ request }: Route.ActionArgs) {
     return logout(request);
   }
 
-  return redirect("/dashboard");
+  return redirect("/");
 }
 
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
