@@ -1,4 +1,4 @@
-import type { Route } from "./+types/register";
+import type { Route } from "./+types/login";
 import { Form, data, useActionData } from "react-router";
 import { prisma } from "../utils/db.server";
 import { createUserSession } from "../utils/session.server";
@@ -6,8 +6,8 @@ import bcrypt from "bcryptjs";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Register - New React Router App" },
-    { name: "description", content: "Create a new account" },
+    { title: "Login - New React Router App" },
+    { name: "description", content: "Sign in to your account" },
   ];
 }
 
@@ -15,50 +15,45 @@ export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const email = formData.get("email");
   const password = formData.get("password");
-  const name = formData.get("name");
 
   // Validate inputs
   if (typeof email !== "string" || !email.includes("@")) {
     return data({ error: "Invalid email address" }, { status: 400 });
   }
 
-  if (typeof password !== "string" || password.length < 6) {
-    return data({ error: "Password must be at least 6 characters" }, { status: 400 });
+  if (typeof password !== "string" || password.length === 0) {
+    return data({ error: "Password is required" }, { status: 400 });
   }
 
-  // Check if user already exists
-  const existingUser = await prisma.user.findUnique({
+  // Find user
+  const user = await prisma.user.findUnique({
     where: { email },
   });
 
-  if (existingUser) {
-    return data({ error: "A user with this email already exists" }, { status: 400 });
+  if (!user) {
+    return data({ error: "Invalid email or password" }, { status: 400 });
   }
 
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
+  // Verify password
+  const isValidPassword = await bcrypt.compare(password, user.password);
 
-  // Create user
-  const user = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      name: typeof name === "string" && name.trim() ? name.trim() : null,
-    },
-  });
+  if (!isValidPassword) {
+    return data({ error: "Invalid email or password" }, { status: 400 });
+  }
 
   // Create session and redirect to dashboard
   return createUserSession(user.id, "/dashboard");
 }
 
-export default function Register() {
+export default function Login() {
   const actionData = useActionData<typeof action>();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg px-8 py-10">
           <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">
-            Register
+            Login
           </h1>
 
           {actionData?.error && (
@@ -68,22 +63,6 @@ export default function Register() {
           )}
 
           <Form method="post" className="space-y-6">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Name (Optional)
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="John Doe"
-              />
-            </div>
-
             <div>
               <label
                 htmlFor="email"
@@ -122,14 +101,14 @@ export default function Register() {
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
             >
-              Register
+              Login
             </button>
           </Form>
 
           <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{" "}
-            <a href="/" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
-              Sign in
+            Don't have an account?{" "}
+            <a href="/register" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+              Register
             </a>
           </p>
         </div>
