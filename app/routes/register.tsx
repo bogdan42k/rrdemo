@@ -15,6 +15,7 @@ export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const email = formData.get("email");
   const password = formData.get("password");
+  const confirmPassword = formData.get("confirmPassword");
   const name = formData.get("name");
 
   // Validate inputs
@@ -24,6 +25,10 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (typeof password !== "string" || password.length < 6) {
     return data({ error: "Password must be at least 6 characters" }, { status: 400 });
+  }
+
+  if (password !== confirmPassword) {
+    return data({ error: "Passwords do not match" }, { status: 400 });
   }
 
   // Check if user already exists
@@ -112,6 +117,23 @@ export default function Register() {
                 type="password"
                 id="password"
                 name="password"
+                required
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
                 required
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="••••••••"
