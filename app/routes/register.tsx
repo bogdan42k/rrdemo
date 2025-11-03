@@ -1,7 +1,7 @@
 import type { Route } from "./+types/register";
-import { Form, data, useActionData } from "react-router";
+import { Form, data, useActionData, redirect } from "react-router";
 import { prisma } from "../utils/db.server";
-import { createUserSession } from "../utils/session.server";
+import { createUserSession, getUserId } from "../utils/session.server";
 import bcrypt from "bcryptjs";
 import { useState } from "react";
 
@@ -12,7 +12,47 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+// Helper function to check if IP is allowed
+function checkIpRestriction(request: Request) {
+  const allowedIps = process.env.DEV_IPS?.split(",").map(ip => ip.trim()) || [];
+
+  if (allowedIps.length > 0) {
+    // Get client IP from various headers (support for proxies/load balancers)
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      request.headers.get("x-real-ip") ||
+      request.headers.get("cf-connecting-ip") || // Cloudflare
+      null;
+
+    // In development, if no proxy headers are present, allow localhost access
+    const effectiveIp = clientIp || (process.env.NODE_ENV === "development" ? "127.0.0.1" : "unknown");
+
+    if (!allowedIps.includes(effectiveIp)) {
+      throw new Response(`Access Denied: Registration is restricted. Your IP: ${effectiveIp}`, {
+        status: 403,
+        statusText: "Forbidden"
+      });
+    }
+  }
+}
+
+export async function loader({ request }: Route.LoaderArgs) {
+  // Check IP restriction first
+  checkIpRestriction(request);
+
+  // Check if user is already authenticated
+  const userId = await getUserId(request);
+  if (userId) {
+    throw redirect("/dashboard");
+  }
+
+  return null;
+}
+
 export async function action({ request }: Route.ActionArgs) {
+  // Check IP restriction first
+  checkIpRestriction(request);
+
   const formData = await request.formData();
   const email = formData.get("email");
   const password = formData.get("password");

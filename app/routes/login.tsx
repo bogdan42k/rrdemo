@@ -1,7 +1,7 @@
 import type { Route } from "./+types/login";
-import { Form, data, useActionData } from "react-router";
+import { Form, data, useActionData, redirect } from "react-router";
 import { prisma } from "../utils/db.server";
-import { createUserSession } from "../utils/session.server";
+import { createUserSession, getUserId } from "../utils/session.server";
 import bcrypt from "bcryptjs";
 
 export function meta({}: Route.MetaArgs) {
@@ -9,6 +9,14 @@ export function meta({}: Route.MetaArgs) {
     { title: "Login - New React Router App" },
     { name: "description", content: "Sign in to your account" },
   ];
+}
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const userId = await getUserId(request);
+  if (userId) {
+    throw redirect("/dashboard");
+  }
+  return null;
 }
 
 export async function action({ request }: Route.ActionArgs) {
