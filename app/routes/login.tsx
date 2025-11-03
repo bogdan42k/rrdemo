@@ -42,7 +42,7 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   // Create session and redirect to dashboard
-  return createUserSession(user.id, "/");
+  return createUserSession(user.id, "/dashboard");
 }
 
 export default function Login() {

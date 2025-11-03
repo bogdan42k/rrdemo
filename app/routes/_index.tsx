@@ -1,4 +1,4 @@
-import type { Route } from "./+types/dashboard";
+import type { Route } from "./+types/_index";
 import { Form, redirect } from "react-router";
 import { getUser, requireUserId } from "../utils/session.server";
 
