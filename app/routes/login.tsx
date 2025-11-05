@@ -1,8 +1,9 @@
 import type { Route } from "./+types/login";
-import { Form, data, useActionData, redirect } from "react-router";
+import { Form, data, useActionData, redirect, useSearchParams } from "react-router";
 import { prisma } from "../utils/db.server";
 import { createUserSession, getUserId } from "../utils/session.server";
 import bcrypt from "bcryptjs";
+import { sendLoginNotification } from "../utils/email.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -49,12 +50,67 @@ export async function action({ request }: Route.ActionArgs) {
     return data({ error: "Invalid email or password" }, { status: 400 });
   }
 
+  // Check if email is verified
+  if (!user.emailVerified) {
+    return data(
+      {
+        error:
+          "Please verify your email address before logging in. Check your inbox for the verification link.",
+      },
+      { status: 403 }
+    );
+  }
+
+  // Send login notification (throttled to once per hour)
+  const now = new Date();
+  const shouldSendNotification =
+    !user.lastLoginNotification ||
+    now.getTime() - user.lastLoginNotification.getTime() > 60 * 60 * 1000; // 1 hour
+
+  if (shouldSendNotification) {
+    try {
+      // Get client information
+      const ipAddress =
+        request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+        request.headers.get("x-real-ip") ||
+        request.headers.get("cf-connecting-ip") ||
+        "Unknown";
+
+      const userAgent = request.headers.get("user-agent") || "Unknown";
+
+      // Send notification email (async, don't block login)
+      sendLoginNotification({
+        to: user.email,
+        name: user.name || "User",
+        ipAddress,
+        userAgent,
+        timestamp: now,
+      }).catch((error) => {
+        console.error("❌ Error sending login notification:", error);
+      });
+
+      // Update last notification timestamp
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginNotification: now },
+      });
+
+      console.log(`📧 Login notification sent to: ${user.email}`);
+    } catch (error) {
+      console.error("❌ Error sending login notification:", error);
+      // Don't block login if notification fails
+    }
+  }
+
   // Create session and redirect to dashboard
   return createUserSession(user.id, "/dashboard");
 }
 
 export default function Login() {
   const actionData = useActionData<typeof action>();
+  const [searchParams] = useSearchParams();
+  const registered = searchParams.get("registered");
+  const resetSuccess = searchParams.get("reset");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
@@ -63,6 +119,18 @@ export default function Login() {
           <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">
             Login
           </h1>
+
+          {registered && (
+            <div className="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-3 rounded mb-4">
+              Registration successful! Please check your email to verify your account before logging in.
+            </div>
+          )}
+
+          {resetSuccess && (
+            <div className="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-3 rounded mb-4">
+              Password reset successful! You can now log in with your new password.
+            </div>
+          )}
 
           {actionData?.error && (
             <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-4">

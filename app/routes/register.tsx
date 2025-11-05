@@ -1,9 +1,10 @@
 import type { Route } from "./+types/register";
 import { Form, data, useActionData, redirect } from "react-router";
 import { prisma } from "../utils/db.server";
-import { createUserSession, getUserId } from "../utils/session.server";
+import { getUserId } from "../utils/session.server";
 import bcrypt from "bcryptjs";
 import { useState } from "react";
+import { generateSecureToken, sendVerificationEmail } from "../utils/email.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -84,17 +85,36 @@ export async function action({ request }: Route.ActionArgs) {
   // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Create user
+  // Generate email verification token
+  const verificationToken = generateSecureToken();
+
+  // Create user with unverified email
   const user = await prisma.user.create({
     data: {
       email,
       password: hashedPassword,
       name: typeof name === "string" && name.trim() ? name.trim() : null,
+      emailVerified: false,
+      emailVerificationToken: verificationToken,
     },
   });
 
-  // Create session and redirect to dashboard
-  return createUserSession(user.id, "/dashboard");
+  // Send verification email
+  try {
+    await sendVerificationEmail({
+      to: user.email,
+      name: user.name || "User",
+      token: verificationToken,
+    });
+
+    console.log(`✅ Verification email sent to: ${user.email}`);
+  } catch (error) {
+    console.error("❌ Error sending verification email:", error);
+    // Still proceed with registration, user can request new verification email
+  }
+
+  // Redirect to login with verification message
+  return redirect("/login?registered=true");
 }
 
 export default function Register() {

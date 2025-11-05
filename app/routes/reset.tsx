@@ -1,6 +1,8 @@
 import type { Route } from "./+types/reset";
 import { Form, data, useActionData, redirect } from "react-router";
 import { getUserId } from "../utils/session.server";
+import { prisma } from "../utils/db.server";
+import { generateSecureToken, sendPasswordResetEmail, getTokenExpiry } from "../utils/email.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -26,16 +28,45 @@ export async function action({ request }: Route.ActionArgs) {
     return data({ error: "Invalid email address" }, { status: 400 });
   }
 
-  // TODO: Implement password reset flow
-  // This will include:
-  // - Generating a password reset token
-  // - Sending reset email
-  // - Storing token with expiration
+  // Look up user by email
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase() },
+    select: { id: true, name: true, email: true },
+  });
 
-  return data(
-    { success: "If an account exists with this email, you will receive a password reset link." },
-    { status: 200 }
-  );
+  // Always return success message for security (don't reveal if email exists)
+  const successMessage = "If an account exists with this email, you will receive a password reset link.";
+
+  if (user) {
+    try {
+      // Generate secure reset token
+      const resetToken = generateSecureToken();
+      const resetTokenExpiry = getTokenExpiry(1); // 1 hour expiry
+
+      // Store token in database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken,
+          resetTokenExpiry,
+        },
+      });
+
+      // Send password reset email
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name || "User",
+        token: resetToken,
+      });
+
+      console.log(`✅ Password reset email sent to: ${user.email}`);
+    } catch (error) {
+      console.error("❌ Error sending password reset email:", error);
+      // Still return success message to prevent user enumeration
+    }
+  }
+
+  return data({ success: successMessage }, { status: 200 });
 }
 
 export default function Reset() {
@@ -49,13 +80,13 @@ export default function Reset() {
             Reset Password
           </h1>
 
-          {actionData?.error && (
+          {actionData && "error" in actionData && actionData.error && (
             <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-4">
               {actionData.error}
             </div>
           )}
 
-          {actionData?.success && (
+          {actionData && "success" in actionData && actionData.success && (
             <div className="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-3 rounded mb-4">
               {actionData.success}
             </div>

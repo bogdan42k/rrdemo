@@ -10,4 +10,4 @@
 /prisma/dev.sqlite
 /prisma/dev.sqlite-journal
 
-/logs
+/logs/*

@@ -1,7 +1,7 @@
 import { createCookieSessionStorage, redirect } from "react-router";
 import { prisma } from "./db.server";
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "default-secret-change-in-production";
+const SESSION_SECRET = process.env.SESSION_SECRET || "qVhioH2usQhK+CI41aT4J7eWW3BZIBzwzoUhngIsue8=";
 
 const sessionStorage = createCookieSessionStorage({
   cookie: {
