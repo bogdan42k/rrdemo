@@ -6,7 +6,7 @@ import { randomBytes } from "crypto";
 const SMTP_CONFIG = {
   host: process.env.SMTP_HOST || "",
   port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_PORT === "587",
+  secure: process.env.SMTP_PORT === "465", // true for 465 (SSL/TLS), false for 587 (STARTTLS)
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD,
