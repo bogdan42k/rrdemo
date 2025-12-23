@@ -4,6 +4,7 @@ export default [
   index("routes/_index.tsx"),
   route("/dashboard", "routes/dashboard.tsx"),
   route("/style/planetscale", "routes/style.planetscale.tsx"),
+  route("/style/wealthfront", "routes/style.wealthfront.tsx"),
   route("/register", "routes/register.tsx"),
   route("/login", "routes/login.tsx"),
   route("/logout", "routes/logout.tsx"),
